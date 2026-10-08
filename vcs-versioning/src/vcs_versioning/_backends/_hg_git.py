@@ -191,7 +191,7 @@ class GitWorkdirHgClient(GitWorkdir, HgWorkdir):
             return _FAKE_GIT_DESCRIBE_ERROR
 
         tag: str
-        for hg_tag in hg_tags:
+        for hg_tag in reversed(hg_tags):
             if hg_tag in git_tags:
                 tag = hg_tag
                 break

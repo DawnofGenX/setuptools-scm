@@ -173,6 +173,17 @@ def test_version_from_git(wd: WorkDir) -> None:
     )
 
 
+@pytest.mark.issue("https://github.com/pypa/setuptools-scm/issues/521")
+def test_multiple_tags_on_same_commit_picks_last(wd: WorkDir) -> None:
+    """When multiple lightweight tags point at the same commit, the last
+    (most recent) tag should be picked."""
+    wd.commit_testfile()
+    wd("git tag v1.0.0")
+    wd("git tag v1.0.1")
+    # With --sort=-v:refname, the last tag by version sort should be picked
+    wd.expect_parse(tag="1.0.1", distance=0, dirty=False, exact=True)
+
+
 def test_unicode_version_scheme(wd: WorkDir) -> None:
     scheme = b"guess-next-dev".decode("ascii")
     assert wd.get_version(version_scheme=scheme)

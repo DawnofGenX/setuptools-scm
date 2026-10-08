@@ -210,8 +210,8 @@ class JjWorkdir(Workdir):
         if not tag_names:
             return None
 
-        # Take the first tag if multiple point at the same commit
-        return tag_names.split(",")[0].strip() or None
+        # Take the last tag if multiple point at the same commit
+        return tag_names.split(",")[-1].strip() or None
 
     def _compute_distance(self, tag_name: str, node: str) -> int:
         """Count the commits between a tag and ``node``.

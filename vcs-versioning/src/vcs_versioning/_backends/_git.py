@@ -59,6 +59,7 @@ def make_describe_command(match: str) -> list[str]:
         "--tags",
         "--long",
         "--abbrev=40",
+        "--sort=-v:refname",
         "--match",
         match,
     ]

@@ -77,7 +77,7 @@ def select_tag(
     if strict is _KEEP:
         strict = config.tag.strict
     tag_prefix = config.tag.prefix
-    for tag_str in tags:
+    for tag_str in reversed(tags):
         check_str = tag_str
         if tag_prefix and tag_str.startswith(tag_prefix):
             check_str = tag_str[len(tag_prefix) :]
