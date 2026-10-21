@@ -7,6 +7,7 @@ import subprocess
 from .. import _types as _t
 from .._backends._hg import run_hg
 from .._compat import norm_real
+from .._discover import find_marker_root
 from .._integration import data_from_mime
 from . import collect_files_and_dirs, is_toplevel_acceptable, scm_find_files
 
@@ -23,8 +24,20 @@ def _hg_toplevel(path: str) -> str | None:
     except subprocess.CalledProcessError:
         # hg returned error, we are not in a mercurial repo
         return None
-    except OSError:
-        # hg command not found, probably
+    except OSError as exc:
+        # hg is not installed, or not executable.  Same reasoning as the git
+        # finder: an empty file list on top of an existing .hg directory is
+        # indistinguishable from a project tracking nothing (:issue:`1404`).
+        cwd = os.path.abspath(path or ".")
+        marker = find_marker_root(cwd, ".hg")
+        if marker is not None:
+            log.warning(
+                "a .hg directory was found in %s, but the 'hg' command could"
+                " not be run (%s) - files tracked by that repository will be"
+                " missing from the file list",
+                marker,
+                exc,
+            )
         return None
     except subprocess.TimeoutExpired:
         log.warning("hg root timed out - pretending this is not a mercurial repo")

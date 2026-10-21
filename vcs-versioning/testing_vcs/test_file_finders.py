@@ -248,6 +248,71 @@ def test_hg_gone(hg_wd: WorkDir, monkeypatch: pytest.MonkeyPatch) -> None:
     assert set(find_files()) == set()
 
 
+@pytest.mark.issue(1404)
+def test_git_missing_warns_when_repo_is_present(
+    wd: WorkDir, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A ``.git`` directory without ``git`` must not vanish silently.
+
+    The file list comes back empty either way (that is the #81 decision), but
+    an empty list with no explanation is what makes a missing ``git`` inside a
+    container look like "this project tracks no files", so the finder has to
+    name the actual cause.
+    """
+    wd.setup_git(monkeypatch)
+    (wd.cwd / "file").touch()
+    wd.add_and_commit()
+    monkeypatch.chdir(wd.cwd)
+    monkeypatch.setenv("PATH", str(wd.cwd / "not-existing"))
+
+    with caplog.at_level(logging.WARNING, logger="vcs_versioning._file_finders._git"):
+        assert find_files() == []
+
+    warnings = [
+        r.getMessage()
+        for r in caplog.records
+        if "could not be run" in r.message and ".git" in r.message
+    ]
+    assert warnings, [r.getMessage() for r in caplog.records]
+    message = warnings[0]
+    assert "'git'" in message
+    assert str(wd.cwd) in message
+
+
+@pytest.mark.issue(1404)
+def test_hg_missing_warns_when_repo_is_present(
+    hg_wd: WorkDir, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Same for ``hg``: the marker is there, the command is not."""
+    monkeypatch.setenv("PATH", str(hg_wd.cwd / "not-existing"))
+
+    with caplog.at_level(logging.WARNING, logger="vcs_versioning._file_finders._hg"):
+        assert find_files() == []
+
+    warnings = [
+        r.getMessage()
+        for r in caplog.records
+        if "could not be run" in r.message and ".hg" in r.message
+    ]
+    assert warnings, [r.getMessage() for r in caplog.records]
+    message = warnings[0]
+    assert "'hg'" in message
+    assert str(hg_wd.cwd) in message
+
+
+@pytest.mark.issue(1404)
+def test_present_tool_does_not_warn(
+    hg_wd: WorkDir, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The warning belongs to the failure, not to every finder run."""
+    with caplog.at_level(logging.WARNING, logger="vcs_versioning._file_finders._hg"):
+        assert set(find_files()) == {"file"}
+
+    assert [
+        r.getMessage() for r in caplog.records if "could not be run" in r.message
+    ] == []
+
+
 def test_hg_command_from_env(
     hg_wd: WorkDir,
     monkeypatch: pytest.MonkeyPatch,

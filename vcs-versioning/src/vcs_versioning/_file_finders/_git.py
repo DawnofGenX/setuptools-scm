@@ -9,6 +9,7 @@ from pathlib import Path
 from .. import _types as _t
 from .._backends._git import run_git
 from .._compat import norm_real, strip_path_suffix
+from .._discover import find_marker_root
 from .._integration import data_from_mime
 from .._run_cmd import run as _run
 from . import collect_files_and_dirs, is_toplevel_acceptable, scm_find_files
@@ -20,8 +21,8 @@ GITLINK_MODE = "160000"
 
 
 def _git_toplevel(path: str) -> str | None:
+    cwd = os.path.abspath(path or ".")
     try:
-        cwd = os.path.abspath(path or ".")
         res = _run(["git", "rev-parse", "HEAD"], cwd=cwd)
         if res.returncode:
             # This catches you being in a git directory, but the
@@ -59,8 +60,20 @@ def _git_toplevel(path: str) -> str | None:
     except subprocess.CalledProcessError:
         # git returned error, we are not in a git repo
         return None
-    except OSError:
-        # git command not found, probably
+    except OSError as exc:
+        # git is not installed, or not executable.  Returning None alone makes
+        # a checkout look like a tree with no tracked files, and installers
+        # swallow warnings, so at least the plain "why" reaches the log
+        # (:issue:`1404`).
+        marker = find_marker_root(cwd, ".git")
+        if marker is not None:
+            log.warning(
+                "a .git directory was found in %s, but the 'git' command could"
+                " not be run (%s) - files tracked by that repository will be"
+                " missing from the file list",
+                marker,
+                exc,
+            )
         return None
     except subprocess.TimeoutExpired:
         log.warning("git rev-parse timed out - pretending this is not a git repo")

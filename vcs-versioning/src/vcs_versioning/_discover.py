@@ -41,6 +41,25 @@ def match_entrypoint(root: _t.PathT, name: str) -> bool:
     return False
 
 
+def find_marker_root(root: _t.PathT, marker: str) -> Path | None:
+    """Return the nearest directory at or above *root* that holds *marker*.
+
+    The file finders are only selected when a marker exists, but the marker
+    may live in a parent of the directory they were handed.  A finder that
+    then fails because its VCS command is missing can still say *where* the
+    checkout it could not read is, which is the difference between "this
+    project tracks nothing" and "git is not installed" (:issue:`1404`).
+    """
+    return next(
+        (
+            candidate
+            for candidate in walk_potential_roots(root, search_parents=True)
+            if match_entrypoint(candidate, marker)
+        ),
+        None,
+    )
+
+
 # blocked entrypints from legacy plugins
 _BLOCKED_EP_TARGETS = {"setuptools_scm_git_archive:parse"}
 
